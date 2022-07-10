@@ -37,6 +37,7 @@ function Login() {
         onClick={() => {
           history.push("/feira");
         }}
+        disabled={nome.length <= 3}
         variant="contained"
         color="primary"
       >

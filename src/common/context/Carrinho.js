@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useContext } from "react";
 import { useState } from "react";
+import { usePagamentoContext } from "./Pagamento.js";
+import { UsuarioContext } from "./Usuarios.js";
 
 const { createContext } = require("react");
 
@@ -10,7 +12,7 @@ CarrinhoContext.displayName = "Carrinho";
 export const CarrinhoProvider = ({ children }) => {
   const [carrinho, setCarrinho] = useState([]);
   const [quantidadeProdutos, setQuantidadeProdutos] = useState(0);
-
+  const [valorTotalCarrinho, setValorTotalCarrinho] = useState(0);
   return (
     <CarrinhoContext.Provider
       value={{
@@ -18,6 +20,8 @@ export const CarrinhoProvider = ({ children }) => {
         setCarrinho,
         quantidadeProdutos,
         setQuantidadeProdutos,
+        valorTotalCarrinho,
+        setValorTotalCarrinho,
       }}
     >
       {children}
@@ -26,8 +30,17 @@ export const CarrinhoProvider = ({ children }) => {
 };
 
 export const useCarrinhoContext = () => {
-  const { carrinho, setCarrinho, quantidadeProdutos, setQuantidadeProdutos } =
-    useContext(CarrinhoContext);
+  const {
+    carrinho,
+    setCarrinho,
+    quantidadeProdutos,
+    setQuantidadeProdutos,
+    valorTotalCarrinho,
+    setValorTotalCarrinho,
+  } = useContext(CarrinhoContext);
+
+  const { formaPagamento } = usePagamentoContext();
+  const { setSaldo } = useContext(UsuarioContext);
 
   function mudaQuantidade(id, quantidade) {
     return carrinho.map((item) => {
@@ -61,14 +74,29 @@ export const useCarrinhoContext = () => {
     );
   }
 
+  function efetuarCompra() {
+    setCarrinho([]);
+    setSaldo((saldoAtual) => saldoAtual - valorTotalCarrinho);
+  }
+
   useEffect(() => {
     if (carrinho.length < 0) return;
-    setQuantidadeProdutos(
-      carrinho.reduce((acumulador, valorAtual) => {
-        return (acumulador += valorAtual.quantidade);
-      }, 0)
+    const { novoTotal, novaQuantidade } = carrinho.reduce(
+      (acumulador, valorAtual) => {
+        return {
+          novaQuantidade: (acumulador.novaQuantidade += valorAtual.quantidade),
+          novoTotal:
+            acumulador.novoTotal + valorAtual.quantidade * valorAtual.valor,
+        };
+      },
+      {
+        novaQuantidade: 0,
+        novoTotal: 0,
+      }
     );
-  }, [carrinho, setQuantidadeProdutos]);
+    setQuantidadeProdutos(novaQuantidade);
+    setValorTotalCarrinho(novoTotal * formaPagamento.juros);
+  }, [carrinho, setQuantidadeProdutos, setValorTotalCarrinho, formaPagamento]);
 
   return {
     carrinho,
@@ -76,5 +104,7 @@ export const useCarrinhoContext = () => {
     adicionarProduto,
     removerProduto,
     quantidadeProdutos,
+    valorTotalCarrinho,
+    efetuarCompra,
   };
 };
